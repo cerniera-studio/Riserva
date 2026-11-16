@@ -63,6 +63,8 @@ object Gauge {
         if (vertical) liquid.top = inner.bottom - inner.height() * f else liquid.right = inner.left + inner.width() * f
         val hi = if (e.reserve) 0xFFE8505A.toInt() else 0xFFF7E6C2.toInt()
         val lo = if (e.reserve) Kit.Fixed.ROSSO else 0xFFB8995F.toInt()
+        // The paint still holds the tank's faint wash: the liquid must be fully opaque
+        p.color = 0xFF000000.toInt()
         p.shader = if (vertical) LinearGradient(0f, liquid.top, 0f, liquid.bottom, hi, lo, Shader.TileMode.CLAMP)
             else LinearGradient(liquid.left, 0f, liquid.right, 0f, lo, hi, Shader.TileMode.CLAMP)
         val ir = (if (vertical) inner.width() else inner.height()) / 2f
@@ -140,6 +142,14 @@ object Gauge {
 class GaugeView(c: Context) : View(c) {
     var estimate: Estimate? = null
         set(v) { field = v; contentDescription = v?.let { "Main screen ${hm(it.hoursMain)}, cover screen ${hm(it.hoursCover)}, ${it.level.toInt()} percent" + if (it.reserve) ", reserve" else "" }; invalidate() }
+
+    // Given a height by its pane, it takes it; in the cover's single column it asks for 300 dp
+    override fun onMeasure(w: Int, h: Int) {
+        val width = MeasureSpec.getSize(w)
+        val height = if (MeasureSpec.getMode(h) == MeasureSpec.EXACTLY) MeasureSpec.getSize(h)
+            else (300 * resources.displayMetrics.density).toInt().let { if (MeasureSpec.getMode(h) == MeasureSpec.AT_MOST) minOf(it, MeasureSpec.getSize(h)) else it }
+        setMeasuredDimension(width, height)
+    }
 
     override fun onDraw(canvas: Canvas) {
         val e = estimate ?: return
