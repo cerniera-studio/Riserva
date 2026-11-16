@@ -40,9 +40,11 @@ object Gauge {
             lamp(c, cv, x, y, big * 0.9f, e, ink, muted)
         } else {
             val tankH = (h * 0.2f).coerceIn(u * 0.12f, u * 0.3f)
-            tank(cv, RectF(0f, h - tankH, w, h), e, vertical = false, ink = ink)
             val big = (h * 0.3f).coerceAtMost(w * 0.11f)
             val top = if (widget) h * 0.06f else h * 0.08f
+            // The tank lies just under the figures, never stranded at the foot of a tall box
+            val tankTop = minOf(h - tankH, top + big * 1.6f + big * 0.6f)
+            tank(cv, RectF(0f, tankTop, w, tankTop + tankH), e, vertical = false, ink = ink)
             figure(c, cv, 0f, top, "MAIN", e.hoursMain, e.learnedMain, big, ink, muted)
             figure(c, cv, w * 0.42f, top, "COVER", e.hoursCover, e.learnedCover, big, ink, muted)
             // The lamp sits at the far end, above the tank's F
@@ -147,7 +149,7 @@ class GaugeView(c: Context) : View(c) {
     override fun onMeasure(w: Int, h: Int) {
         val width = MeasureSpec.getSize(w)
         val height = if (MeasureSpec.getMode(h) == MeasureSpec.EXACTLY) MeasureSpec.getSize(h)
-            else (300 * resources.displayMetrics.density).toInt().let { if (MeasureSpec.getMode(h) == MeasureSpec.AT_MOST) minOf(it, MeasureSpec.getSize(h)) else it }
+            else minOf((300 * resources.displayMetrics.density).toInt(), width / 2).let { if (MeasureSpec.getMode(h) == MeasureSpec.AT_MOST) minOf(it, MeasureSpec.getSize(h)) else it }
         setMeasuredDimension(width, height)
     }
 
