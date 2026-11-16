@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The reserve lamp, as a quiet notification (so Spia can light it too) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Fold Taskbar reads the battery for Riserva: knowing it is installed -->
+    <queries>
+        <package android:name="com.fergusonconsultancy.foldtaskbar" />
+    </queries>
+
+    <application
+        android:name=".RiservaApp"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.App"
+        android:allowBackup="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Each reading from Fold Taskbar's meter: which screen, the charge, the current -->
+        <receiver
+            android:name=".Reading"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.cerniera.riserva.READING" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".GaugeWidget"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/gauge_widget" />
+        </receiver>
+    </application>
+</manifest>

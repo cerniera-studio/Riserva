@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Riserva: a binnacle fuel gauge, E to F, its needle low, and the reserve lamp beneath.
+     Ivory line work, one champagne element: the family icon style. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M34.95,69A22,22 0 1 1 73.05,69"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M39.28,66.5L34.95,69"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M68.72,66.5L73.05,69"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M54,36V41"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M54,58L38.06,59.39"/>
+    <path android:fillColor="#00000000" android:strokeColor="#FFF6F1E6" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M52,58a2,2 0 1 0 4,0a2,2 0 1 0 -4,0"/>
+    <path android:pathData="M49,74h10a3,3 0 0 1 0,6h-10a3,3 0 0 1 0,-6z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="46" android:startY="72" android:endX="62" android:endY="82">
+                <item android:offset="0" android:color="#FFF7E6C2"/>
+                <item android:offset="1" android:color="#FFB8995F"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+</vector>
