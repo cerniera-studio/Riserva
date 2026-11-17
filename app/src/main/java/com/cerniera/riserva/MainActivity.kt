@@ -41,7 +41,15 @@ class MainActivity : Activity() {
         super.onCreate(saved)
         if (Crash.show(this, "Riserva")) return
         Kit.follow(this)
+        GaugeWidget.measured(this, intent)
         render()
+    }
+
+    // One Riserva, however it is opened (launcher, widget or notice): a second tap brings this one forward
+    override fun onNewIntent(i: Intent) {
+        super.onNewIntent(i)
+        setIntent(i)
+        GaugeWidget.measured(this, i)
     }
 
     override fun onResume() {

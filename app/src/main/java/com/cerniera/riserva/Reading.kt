@@ -18,6 +18,7 @@ import android.graphics.RectF
 import android.os.Bundle
 import android.util.SizeF
 import android.widget.RemoteViews
+import com.cerniera.kit.Backdrop
 import com.cerniera.kit.Crash
 import com.cerniera.kit.Kit
 
@@ -90,47 +91,92 @@ object Reserve {
 }
 
 /**
- * The widget (16 Nov 2026): the gauge drawn at the widget's own size, one picture for each way
- * round, so turning the phone shows a picture made for that shape. Visconti glass, always.
+ * The widget (16 Nov 2026; drawn to the pixel 17 Nov). The gauge drawn at the widget's own size, one
+ * picture for each way round, so turning the phone shows a picture made for that shape.
+ *
+ * Crispness, as in Fold Widgets: every picture is drawn at the density of the screen in use now (on a
+ * Fold the app's resources can carry the other screen's density), at full resolution, never shrunk to
+ * save memory. Once a tap on the widget has measured its real size (the tap's source bounds), the
+ * picture for that screen and orientation is drawn to exactly those pixels, so the launcher shows it
+ * 1:1 with no resampling. Until then the launcher's reported size is used.
  */
 class GaugeWidget : AppWidgetProvider() {
     override fun onUpdate(c: Context, m: AppWidgetManager, ids: IntArray) = updateAll(c, null)
     override fun onAppWidgetOptionsChanged(c: Context, m: AppWidgetManager, id: Int, o: Bundle) = updateAll(c, null)
 
     companion object {
+        const val EXTRA_ID = "widget_id"
+        fun store(c: Context) = c.getSharedPreferences("riserva_widgets", Context.MODE_PRIVATE)
+
+        /** One size per orientation, portrait first, in dp: what the launcher says it gives the widget. */
+        private fun sizes(o: Bundle): List<SizeF> {
+            @Suppress("DEPRECATION")
+            val listed = o.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)?.filter { it.width > 0 && it.height > 0 }.orEmpty()
+            if (listed.isNotEmpty()) {
+                val p = listed.minBy { it.width / it.height }; val l = listed.maxBy { it.width / it.height }
+                return if (same(p, l)) listOf(p) else listOf(p, l)
+            }
+            val pw = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180); val ph = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 110)
+            val lw = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, pw); val lh = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, ph)
+            val p = SizeF(pw.toFloat(), ph.toFloat()); val l = SizeF(lw.toFloat(), lh.toFloat())
+            return if (same(p, l)) listOf(p) else listOf(p, l)
+        }
+
+        private fun same(a: SizeF, b: SizeF) = Math.abs(a.width - b.width) < 1.5f && Math.abs(a.height - b.height) < 1.5f
+
         fun updateAll(c: Context, given: Estimate?) {
             val m = AppWidgetManager.getInstance(c)
             val ids = m.getAppWidgetIds(ComponentName(c, GaugeWidget::class.java))
             if (ids.isEmpty()) return
             val e = given ?: Model.estimate(c, Sample.now(c, Store.last(c)?.seat ?: Seat.COVER))
-            val open = PendingIntent.getActivity(c, 0, Intent(c, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+            val d = Backdrop.density(c)
+            val screen = Backdrop.screenSize(c)
+            val portrait = screen.y >= screen.x
+            // RemoteViews carry at most about 1.5 screens of bitmap: kept well inside it
+            val budget = screen.x.toLong() * screen.y * 4 * 3 / 2 * 85 / 100
             ids.forEach { id ->
-                val o = m.getAppWidgetOptions(id)
-                val d = c.resources.displayMetrics.density
-                val minW = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 180).coerceAtLeast(60)
-                val maxW = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, minW).coerceAtLeast(minW)
-                val minH = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 80).coerceAtLeast(40)
-                val maxH = o.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, minH).coerceAtLeast(minH)
-                // Upright the widget is narrowest and tallest; turned, widest and shortest
-                val shapes = linkedSetOf(SizeF(minW.toFloat(), maxH.toFloat()), SizeF(maxW.toFloat(), minH.toFloat()))
-                val views = shapes.associateWith { size ->
-                    RemoteViews(c.packageName, R.layout.gauge).apply {
-                        setImageViewBitmap(R.id.picture, picture(c, (size.width * d).toInt(), (size.height * d).toInt(), e))
+                val list = sizes(m.getAppWidgetOptions(id))
+                val now = if (portrait) list.first() else list.last()
+                val seat = Backdrop.seat(store(c), id)
+                val map = LinkedHashMap<SizeF, RemoteViews>()
+                var spent = 0L
+                // The size in use first, so it is never the one that gives way
+                (listOf(now) + list.filter { !same(it, now) }).forEach { s ->
+                    val isNow = same(s, now)
+                    // Measured by a tap at this very size, on this screen: its true pixels
+                    var px = Math.round(s.width * d); var py = Math.round(s.height * d)
+                    if (isNow && seat != null && seat.exact && seat.screenW == screen.x && seat.screenH == screen.y &&
+                        Math.abs(seat.repW - s.width) < 1.5f && Math.abs(seat.repH - s.height) < 1.5f) {
+                        px = Math.round(seat.width); py = Math.round(seat.height)
+                    }
+                    val want = px.toLong() * py * 4
+                    val k = if (!isNow && spent + want > budget) Math.sqrt((budget - spent).coerceAtLeast(budget / 4).toDouble() / want).toFloat() else 1f
+                    val bw = Math.round(px * k).coerceAtLeast(60); val bh = Math.round(py * k).coerceAtLeast(40)
+                    spent += bw.toLong() * bh * 4
+                    map[s] = RemoteViews(c.packageName, R.layout.gauge).apply {
+                        setImageViewBitmap(R.id.picture, picture(c, bw, bh, d * k, e))
                         setContentDescription(R.id.picture, "Riserva: main screen ${hm(e.hoursMain)}, cover ${hm(e.hoursCover)}")
-                        setOnClickPendingIntent(R.id.frame, open)
+                        // Each widget's own tap, carrying its id: the tap's bounds measure the widget
+                        setOnClickPendingIntent(R.id.frame, PendingIntent.getActivity(c, id,
+                            Intent(c, MainActivity::class.java).putExtra(EXTRA_ID, id).putExtra("rw", s.width).putExtra("rh", s.height),
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
                     }
                 }
-                runCatching { m.updateAppWidget(id, RemoteViews(views)) }
+                runCatching { m.updateAppWidget(id, if (map.size == 1) map.values.first() else RemoteViews(map)) }
             }
         }
 
-        private fun picture(c: Context, w: Int, h: Int, e: Estimate): Bitmap {
-            // Two pictures travel to the home screen in one parcel: each is kept under about 600 KB
-            val k = minOf(1f, kotlin.math.sqrt(150_000f / (w.coerceAtLeast(1) * h.coerceAtLeast(1))))
-            val bw = (w * k).toInt().coerceAtLeast(120); val bh = (h * k).toInt().coerceAtLeast(80)
+        /** The tap that opened Riserva from a widget: records the widget's true size, and redraws if it changed. */
+        fun measured(c: Context, i: Intent) {
+            val id = i.getIntExtra(EXTRA_ID, -1).takeIf { it >= 0 } ?: return
+            val reported = SizeF(i.getFloatExtra("rw", 0f), i.getFloatExtra("rh", 0f))
+            if (Backdrop.record(c, store(c), i, id, null, null, true, reported)) updateAll(c, null)
+        }
+
+        /** [d] is the density the picture is drawn at, so sizes in dp come out at the true pixels. */
+        private fun picture(c: Context, bw: Int, bh: Int, d: Float, e: Estimate): Bitmap {
             val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
             val cv = Canvas(b)
-            val d = c.resources.displayMetrics.density * k
             val p = Paint(Paint.ANTI_ALIAS_FLAG)
             val r = RectF(0f, 0f, bw.toFloat(), bh.toFloat())
             p.color = 0xEB0E1311.toInt()
