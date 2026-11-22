@@ -154,7 +154,7 @@ class GaugeWidget : AppWidgetProvider() {
                     val bw = Math.round(px * k).coerceAtLeast(60); val bh = Math.round(py * k).coerceAtLeast(40)
                     spent += bw.toLong() * bh * 4
                     map[s] = RemoteViews(c.packageName, R.layout.gauge).apply {
-                        setImageViewBitmap(R.id.picture, picture(c, bw, bh, d * k, e))
+                        setImageViewBitmap(R.id.picture, picture(c, id, bw, bh, d * k, e))
                         setContentDescription(R.id.picture, "Riserva: main screen ${hm(e.hoursMain)}, cover ${hm(e.hoursCover)}")
                         // Each widget's own tap, carrying its id: the tap's bounds measure the widget
                         setOnClickPendingIntent(R.id.frame, PendingIntent.getActivity(c, id,
@@ -173,21 +173,47 @@ class GaugeWidget : AppWidgetProvider() {
             if (Backdrop.record(c, store(c), i, id, null, null, true, reported)) updateAll(c, null)
         }
 
-        /** [d] is the density the picture is drawn at, so sizes in dp come out at the true pixels. */
-        private fun picture(c: Context, bw: Int, bh: Int, d: Float, e: Estimate): Bitmap {
+        /**
+         * The picture, [bw] x [bh] px at density [d] (22 Nov 2026). It had its own fixed dark card;
+         * it now wears Fold Widgets' finish and corners (read from its LookProvider, as Nodo and Dorso
+         * do), over the wallpaper behind it, and is composed from the family's widget grammar.
+         */
+        private fun picture(c: Context, id: Int, bw: Int, bh: Int, d: Float, e: Estimate): Bitmap {
             val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
-            val cv = Canvas(b)
-            val p = Paint(Paint.ANTI_ALIAS_FLAG)
-            val r = RectF(0f, 0f, bw.toFloat(), bh.toFloat())
-            p.color = 0xEB0E1311.toInt()
-            cv.drawRoundRect(r, 24 * d, 24 * d, p)
-            p.style = Paint.Style.STROKE; p.strokeWidth = d; p.color = 0x33D9BB86
-            r.inset(d / 2, d / 2); cv.drawRoundRect(r, 24 * d, 24 * d, p)
-            val pad = 14 * d
-            cv.save(); cv.translate(pad, pad)
-            Gauge.draw(c, cv, bw - pad * 2, bh - pad * 2, e, Kit.Fixed.IVORY, 0xFF96A098.toInt(), widget = true)
-            cv.restore()
+            val cv = Canvas(b).apply { scale(d, d) }
+            val w = bw / d; val h = bh / d
+            val look = look(c)
+            val s = com.cerniera.kit.Surface(look.first, Backdrop.ground(c, store(c), id), w, h, minOf(look.second, minOf(w, h) / 2), 1.1f / d)
+            s.paint(cv)
+            Gauge.widget(c, cv, s, e)
             return b
         }
+
+        /** Fold Widgets' finish and corners when it is installed; otherwise Vetro at radius 24. */
+        fun look(c: Context): Pair<com.cerniera.kit.Finish, Float> = runCatching {
+            c.contentResolver.query(android.net.Uri.parse("content://com.fergusonconsultancy.foldwidgets.look/look"), null, null, null, null)?.use { cur ->
+                if (!cur.moveToFirst()) null
+                else com.cerniera.kit.Finish.valueOf(cur.getString(cur.getColumnIndexOrThrow("finish"))) to cur.getInt(cur.getColumnIndexOrThrow("radius")).toFloat()
+            }
+        }.getOrNull() ?: (com.cerniera.kit.Finish.VETRO to 24f)
+
+        /** The family's preview canvas (960 px at 2.625 px per dp), Carbonio, for the picker. */
+        fun preview(c: Context, e: Estimate): Bitmap {
+            val d = 2.625f; val w = 255f; val h = 120f
+            val b = Bitmap.createBitmap(Math.round(w * d), Math.round(h * d), Bitmap.Config.ARGB_8888)
+            val cv = Canvas(b).apply { scale(d, d) }
+            val s = com.cerniera.kit.Surface(com.cerniera.kit.Finish.CARBONIO, com.cerniera.kit.Ground.flat(0xFF16191A.toInt()), w, h, 24f, 1.1f / d)
+            s.paint(cv); Gauge.widget(c, cv, s, e)
+            val out = Bitmap.createBitmap(960, 960, Bitmap.Config.ARGB_8888)
+            Canvas(out).drawBitmap(b, ((960 - b.width) / 2).toFloat(), ((960 - b.height) / 2).toFloat(), null)
+            return out
+        }
+    }
+}
+
+/** Fold Widgets' look or the wallpaper changed (22 Nov 2026): redraw the gauge to match. */
+class GaugeLook : BroadcastReceiver() {
+    override fun onReceive(c: Context, i: Intent) {
+        if (i.action == "com.cerniera.LOOK_CHANGED") { com.cerniera.kit.Backdrop.invalidate(); GaugeWidget.updateAll(c, null) }
     }
 }

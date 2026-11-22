@@ -9,6 +9,6 @@
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="1800000"
-    android:previewLayout="@layout/gauge"
+    android:previewImage="@drawable/preview_widget"
     android:initialLayout="@layout/gauge"
     android:description="@string/widget_name" />
