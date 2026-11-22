@@ -42,6 +42,21 @@ class MainActivity : Activity() {
         if (Crash.show(this, "Riserva")) return
         Kit.follow(this)
         GaugeWidget.measured(this, intent)
+        // Test only (22 Nov 2026): the widget at the family's size matrix and the picker's preview, as files
+        if (intent?.getBooleanExtra("matrix", false) == true && (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            val e = Model.estimate(this, Sample.now(this, Store.last(this)?.seat ?: Seat.COVER))
+            fun save(b: android.graphics.Bitmap, n: String) = java.io.File(filesDir, n).outputStream().use { b.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            save(GaugeWidget.preview(this, e), "preview_riserva.png")
+            for (sz in listOf("192x164", "255x164", "255x267", "128x267", "177x226", "385x226", "300x120", "110x110", "110x50")) {
+                val (w, h) = sz.split("x").map { it.toFloat() }
+                val d = 2.625f
+                val b = android.graphics.Bitmap.createBitmap(Math.round(w * d), Math.round(h * d), android.graphics.Bitmap.Config.ARGB_8888)
+                val cv = android.graphics.Canvas(b).apply { scale(d, d) }
+                val s = com.cerniera.kit.Surface(com.cerniera.kit.Finish.VETRO, com.cerniera.kit.Ground.flat(0xFF1B211E.toInt()), w, h, 24f, 1.1f / d)
+                s.paint(cv); Gauge.widget(this, cv, s, e)
+                save(b, "matrix-$sz.png")
+            }
+        }
         render()
     }
 

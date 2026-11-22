@@ -140,6 +140,62 @@ object Gauge {
     }
 }
 
+/**
+ * The widget, composed from the family's widget grammar (Kit Grammar, 22 Nov 2026), so it reads as
+ * one set with Fold Widgets, Nodo and Dorso: the label at the top left, the two figures (hours left
+ * on each screen) as large as the room allows in the middle, and the tank as the foot, a capsule
+ * filled to the charge with the reserve lamp at its end. Every word takes the Surface's proven ink.
+ */
+fun Gauge.widget(c: Context, cv: Canvas, s: com.cerniera.kit.Surface, e: Estimate) {
+    val G = com.cerniera.kit.Grammar
+    val w = s.w; val h = s.h
+    val k = G.scale(w, h); val pad = G.inset(w, h, k)
+    val shape = G.shape(w, h)
+    val showLabel = h >= 100f && shape != G.Shape.TILE
+    val top = if (showLabel) G.eyebrow(c, cv, s, if (e.reserve) "Riserva · reserve" else "Riserva", pad, pad, w - 2 * pad, k) else pad
+    // The foot: the tank, a thick line, with the lamp at its end
+    val tankH = (6f * k).coerceAtMost(h * 0.08f).coerceAtLeast(4f)
+    val lampW = tankH * 2.2f
+    val footY = h - pad - tankH
+    val track = RectF(pad, footY, w - pad - lampW - 8f * k, footY + tankH)
+    val pt = Paint(Paint.ANTI_ALIAS_FLAG)
+    pt.color = s.faint(w / 2, footY); cv.drawRoundRect(track, tankH / 2, tankH / 2, pt)
+    val f = (e.level / 100f).coerceIn(0f, 1f)
+    if (f > 0.01f) {
+        pt.color = if (e.reserve) Kit.Fixed.ROSSO else s.accent(w / 2, footY)
+        cv.drawRoundRect(RectF(track.left, track.top, track.left + maxOf(tankH, track.width() * f), track.bottom), tankH / 2, tankH / 2, pt)
+    }
+    val lamp = RectF(w - pad - lampW, footY, w - pad, footY + tankH)
+    pt.color = if (e.reserve) Kit.Fixed.ROSSO else withAlpha(s.ink(lamp.centerX(), lamp.centerY()), 0.18f)
+    cv.drawRoundRect(lamp, tankH / 2, tankH / 2, pt)
+    // The figures fill the room between the label and the foot
+    val bottom = footY - G.GAP * k
+    val stacked = shape == G.Shape.COLUMN
+    val cols = if (stacked) 1 else 2
+    val colW = (w - 2 * pad - (cols - 1) * 16f * k) / cols
+    val rows = if (stacked) 2 else 1
+    val cell = (bottom - top - (rows - 1) * G.GAP * k) / rows
+    val items = listOf("Main" to e.hoursMain, "Cover" to e.hoursCover)
+    items.forEachIndexed { i, (name, hours) ->
+        val x = pad + (if (stacked) 0 else i) * (colW + 16f * k)
+        val y0 = top + (if (stacked) i else 0) * (cell + G.GAP * k)
+        val lp = G.label(c, k, s.muted(x + colW / 2, y0 + 4f))
+        val labelH = if (cell >= 40f * k) G.cap(lp) + 6f * k else 0f
+        if (labelH > 0f) with(G) { cv.top(name.uppercase(), x, y0, lp) }
+        val text = if (hours != null) hm(hours) else "Learning"
+        val fp = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = if (hours != null) Kit.display(c) else Kit.sans(c, 600); color = s.ink(x + colW / 2, y0 + cell / 2) }
+        // As large as fits the cell: its capitals the height left, its width the column's
+        var size = 120f * k
+        val bounds = android.graphics.Rect()
+        while (size > 10f) {
+            fp.textSize = size; fp.getTextBounds(text, 0, text.length, bounds)
+            if (bounds.height() <= cell - labelH && fp.measureText(text) <= colW) break
+            size -= 1f
+        }
+        cv.drawText(text, x - bounds.left * 0f, y0 + labelH + (cell - labelH + bounds.height()) / 2f - bounds.bottom, fp)
+    }
+}
+
 /** The gauge as a view, for the app. */
 class GaugeView(c: Context) : View(c) {
     var estimate: Estimate? = null

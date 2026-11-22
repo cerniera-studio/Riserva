@@ -7,6 +7,8 @@
     <!-- Fold Taskbar reads the battery for Riserva: knowing it is installed -->
     <queries>
         <package android:name="com.fergusonconsultancy.foldtaskbar" />
+        <!-- Fold Widgets' look (finish and corners), as Nodo and Dorso read it (22 Nov 2026) -->
+        <package android:name="com.fergusonconsultancy.foldwidgets" />
     </queries>
 
     <application
@@ -35,6 +37,11 @@
             <intent-filter>
                 <action android:name="com.cerniera.riserva.READING" />
             </intent-filter>
+        </receiver>
+
+        <!-- Fold Widgets says its look or the wallpaper changed: redraw to match -->
+        <receiver android:name=".GaugeLook" android:exported="true">
+            <intent-filter><action android:name="com.cerniera.LOOK_CHANGED" /></intent-filter>
         </receiver>
 
         <receiver
