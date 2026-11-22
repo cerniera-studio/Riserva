@@ -173,27 +173,43 @@ fun Gauge.widget(c: Context, cv: Canvas, s: com.cerniera.kit.Surface, e: Estimat
     val bottom = footY - G.GAP * k
     val stacked = shape == Grammar.Shape.COLUMN
     val cols = if (stacked) 1 else 2
-    val colW = (w - 2 * pad - (cols - 1) * 16f * k) / cols
+    val between = 24f * k
+    val colW = (w - 2 * pad - (cols - 1) * between) / cols
     val rows = if (stacked) 2 else 1
-    val cell = (bottom - top - (rows - 1) * G.GAP * k) / rows
+    val cell = (bottom - top - (rows - 1) * G.GAP * k * 1.6f) / rows
     val items = listOf("Main" to e.hoursMain, "Cover" to e.hoursCover)
-    items.forEachIndexed { i, (name, hours) ->
-        val x = pad + (if (stacked) 0 else i) * (colW + 16f * k)
-        val y0 = top + (if (stacked) i else 0) * (cell + G.GAP * k)
-        val lp = G.label(c, k, s.muted(x + colW / 2, y0 + 4f))
-        val labelH = if (cell >= 40f * k) G.cap(lp) + 6f * k else 0f
-        if (labelH > 0f) with(G) { cv.top(name.uppercase(), x, y0, lp) }
+    val bounds = android.graphics.Rect()
+    // One size for both figures (the smaller of the two fits), so they read as a pair
+    fun paintFor(text: String, known: Boolean, x: Float, y: Float) = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = if (known) Kit.display(c) else Kit.sans(c, 600); color = s.ink(x, y) }
+    val lp0 = G.label(c, k, 0)
+    val withLabels = colW >= 60f && cell >= 40f * k
+    val labelH = if (withLabels) G.cap(lp0) + 8f * k else 0f
+    var size = 140f * k
+    for ((_, hours) in items) {
         val text = if (hours != null) hm(hours) else "Learning"
-        val fp = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = if (hours != null) Kit.display(c) else Kit.sans(c, 600); color = s.ink(x + colW / 2, y0 + cell / 2) }
-        // As large as fits the cell: its capitals the height left, its width the column's
-        var size = 120f * k
-        val bounds = android.graphics.Rect()
-        while (size > 10f) {
-            fp.textSize = size; fp.getTextBounds(text, 0, text.length, bounds)
-            if (bounds.height() <= cell - labelH && fp.measureText(text) <= colW) break
-            size -= 1f
+        val fp = paintFor(text, hours != null, 0f, 0f)
+        var sz = size
+        while (sz > 10f) { fp.textSize = sz; fp.getTextBounds(text, 0, text.length, bounds); if (bounds.height() <= cell - labelH && fp.measureText(text) <= colW) break; sz -= 1f }
+        size = minOf(size, sz)
+    }
+    items.forEachIndexed { i, (name, hours) ->
+        val x = pad + (if (stacked) 0 else i) * (colW + between)
+        val cellBottom = top + (if (stacked) i + 1 else 1) * cell + (if (stacked) i else 0) * G.GAP * k * 1.6f
+        val text = if (hours != null) hm(hours) else "Learning"
+        val fp = paintFor(text, hours != null, x + colW / 2, cellBottom - 10f).apply { textSize = size }
+        fp.getTextBounds(text, 0, text.length, bounds)
+        // Each figure rests on the foot of its cell, its label just above it
+        val base = cellBottom - bounds.bottom
+        cv.drawText(text, x, base, fp)
+        if (withLabels) {
+            val lp = G.label(c, k, s.muted(x + colW / 2, base - bounds.height() - 6f))
+            cv.drawText(name.uppercase(), x, base - bounds.height() - 8f * k, lp)
         }
-        cv.drawText(text, x - bounds.left * 0f, y0 + labelH + (cell - labelH + bounds.height()) / 2f - bounds.bottom, fp)
+        if (!stacked && i == 0) {
+            val rule = Paint(Paint.ANTI_ALIAS_FLAG).apply { strokeWidth = s.hairline; color = s.faint(x + colW + between / 2, cellBottom) }
+            cv.drawLine(x + colW + between / 2, base - bounds.height() - labelH, x + colW + between / 2, base, rule)
+        }
     }
 }
 
