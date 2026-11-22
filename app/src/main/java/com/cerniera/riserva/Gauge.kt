@@ -171,9 +171,18 @@ fun Gauge.widget(c: Context, cv: Canvas, s: com.cerniera.kit.Surface, e: Estimat
     cv.drawRoundRect(lamp, tankH / 2, tankH / 2, pt)
     // The figures fill the room between the label and the foot
     val bottom = footY - G.GAP * k
-    val stacked = shape == Grammar.Shape.COLUMN
-    val cols = if (stacked) 1 else 2
     val between = 24f * k
+    // Side by side or stacked: whichever lets the figures be larger (no empty band above a pair that fills the width)
+    fun largest(st: Boolean): Float {
+        val cw = if (st) w - 2 * pad else (w - 2 * pad - between) / 2
+        val ch = if (st) (bottom - top - G.GAP * k * 1.6f) / 2 else bottom - top
+        val fp = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply { typeface = Kit.display(c) }
+        val t = "24 h 58"; val r = android.graphics.Rect(); var sz = 140f * k
+        while (sz > 10f) { fp.textSize = sz; fp.getTextBounds(t, 0, t.length, r); if (r.height() <= ch - 20f * k && fp.measureText(t) <= cw) break; sz -= 1f }
+        return sz
+    }
+    val stacked = shape == Grammar.Shape.COLUMN || (shape != Grammar.Shape.STRIP && largest(true) > largest(false) * 1.15f)
+    val cols = if (stacked) 1 else 2
     val colW = (w - 2 * pad - (cols - 1) * between) / cols
     val rows = if (stacked) 2 else 1
     val cell = (bottom - top - (rows - 1) * G.GAP * k * 1.6f) / rows
