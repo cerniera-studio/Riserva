@@ -7,6 +7,7 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import android.view.View
+import com.cerniera.kit.Grammar
 import com.cerniera.kit.Kit
 import com.cerniera.kit.withAlpha
 
@@ -151,7 +152,7 @@ fun Gauge.widget(c: Context, cv: Canvas, s: com.cerniera.kit.Surface, e: Estimat
     val w = s.w; val h = s.h
     val k = G.scale(w, h); val pad = G.inset(w, h, k)
     val shape = G.shape(w, h)
-    val showLabel = h >= 100f && shape != G.Shape.TILE
+    val showLabel = h >= 100f && shape != Grammar.Shape.TILE
     val top = if (showLabel) G.eyebrow(c, cv, s, if (e.reserve) "Riserva · reserve" else "Riserva", pad, pad, w - 2 * pad, k) else pad
     // The foot: the tank, a thick line, with the lamp at its end
     val tankH = (6f * k).coerceAtMost(h * 0.08f).coerceAtLeast(4f)
@@ -170,7 +171,7 @@ fun Gauge.widget(c: Context, cv: Canvas, s: com.cerniera.kit.Surface, e: Estimat
     cv.drawRoundRect(lamp, tankH / 2, tankH / 2, pt)
     // The figures fill the room between the label and the foot
     val bottom = footY - G.GAP * k
-    val stacked = shape == G.Shape.COLUMN
+    val stacked = shape == Grammar.Shape.COLUMN
     val cols = if (stacked) 1 else 2
     val colW = (w - 2 * pad - (cols - 1) * 16f * k) / cols
     val rows = if (stacked) 2 else 1
