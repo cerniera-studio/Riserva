@@ -132,6 +132,10 @@ class GaugeWidget : AppWidgetProvider() {
             val d = Backdrop.density(c)
             val screen = Backdrop.screenSize(c)
             val portrait = screen.y >= screen.x
+            // The family look (26 Nov 2026): where live mode last saw these widgets, then Fold Widgets' look, once for all
+            com.cerniera.kit.Backdrop.invalidate()
+            com.cerniera.kit.Family.seats(c, store(c), ids) { sizes(m.getAppWidgetOptions(it)) }
+            val look = look(c)
             // RemoteViews carry at most about 1.5 screens of bitmap: kept well inside it
             val budget = screen.x.toLong() * screen.y * 4 * 3 / 2 * 85 / 100
             ids.forEach { id ->
@@ -154,10 +158,10 @@ class GaugeWidget : AppWidgetProvider() {
                     val bw = Math.round(px * k).coerceAtLeast(60); val bh = Math.round(py * k).coerceAtLeast(40)
                     spent += bw.toLong() * bh * 4
                     map[s] = RemoteViews(c.packageName, R.layout.gauge).apply {
-                        setImageViewBitmap(R.id.picture, picture(c, id, bw, bh, d * k, e))
+                        setImageViewBitmap(R.id.picture, picture(c, id, bw, bh, d * k, e, look))
                         setContentDescription(R.id.picture, "Riserva: main screen ${hm(e.hoursMain)}, cover ${hm(e.hoursCover)}")
                         // Each widget's own tap, carrying its id: the tap's bounds measure the widget
-                        setOnClickPendingIntent(R.id.frame, PendingIntent.getActivity(c, id,
+                        setOnClickPendingIntent(R.id.root, PendingIntent.getActivity(c, id,
                             Intent(c, MainActivity::class.java).putExtra(EXTRA_ID, id).putExtra("rw", s.width).putExtra("rh", s.height),
                             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
                     }
@@ -178,24 +182,26 @@ class GaugeWidget : AppWidgetProvider() {
          * it now wears Fold Widgets' finish and corners (read from its LookProvider, as Nodo and Dorso
          * do), over the wallpaper behind it, and is composed from the family's widget grammar.
          */
-        private fun picture(c: Context, id: Int, bw: Int, bh: Int, d: Float, e: Estimate): Bitmap {
+        private fun picture(c: Context, id: Int, bw: Int, bh: Int, d: Float, e: Estimate, look: Pair<com.cerniera.kit.Finish, Float>): Bitmap {
             val b = Bitmap.createBitmap(bw, bh, Bitmap.Config.ARGB_8888)
             val cv = Canvas(b).apply { scale(d, d) }
             val w = bw / d; val h = bh / d
-            val look = look(c)
-            val s = com.cerniera.kit.Surface(look.first, Backdrop.ground(c, store(c), id), w, h, minOf(look.second, minOf(w, h) / 2), 1.1f / d)
+            val s = com.cerniera.kit.Surface(look.first, com.cerniera.kit.Family.ground(c, store(c), id), w, h, minOf(look.second, minOf(w, h) / 2), 1.1f / d)
             s.paint(cv)
             Gauge.widget(c, cv, s, e)
             return b
         }
 
-        /** Fold Widgets' finish and corners when it is installed; otherwise Vetro at radius 24. */
-        fun look(c: Context): Pair<com.cerniera.kit.Finish, Float> = runCatching {
-            c.contentResolver.query(android.net.Uri.parse("content://com.fergusonconsultancy.foldwidgets.look/look"), null, null, null, null)?.use { cur ->
-                if (!cur.moveToFirst()) null
-                else com.cerniera.kit.Finish.valueOf(cur.getString(cur.getColumnIndexOrThrow("finish"))) to cur.getInt(cur.getColumnIndexOrThrow("radius")).toFloat()
-            }
-        }.getOrNull() ?: (com.cerniera.kit.Finish.VETRO to 24f)
+        /**
+         * Fold Widgets' finish and corners, and the picture behind its glass, through the Kit's Family
+         * (26 Nov 2026), the one code every Cerniera widget uses. A slow answer keeps the last look.
+         * Since 26 Nov the gauge also takes its place from Fold Widgets' live mode (its picture's view
+         * is now named root, as live mode looks for), so its glass reads the same slice of wallpaper
+         * as the widgets beside it; before, it wore the wallpaper's overall colour and an adaptive
+         * finish took a different tone over it.
+         */
+        fun look(c: Context): Pair<com.cerniera.kit.Finish, Float> =
+            com.cerniera.kit.Family.look(c, store(c)).let { it.finish to it.radius.toFloat() }
 
         /** The family's preview canvas (960 px at 2.625 px per dp), Carbonio, for the picker. */
         fun preview(c: Context, e: Estimate): Bitmap {
