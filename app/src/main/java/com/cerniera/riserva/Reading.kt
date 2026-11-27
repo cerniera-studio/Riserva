@@ -136,9 +136,12 @@ class GaugeWidget : AppWidgetProvider() {
             com.cerniera.kit.Backdrop.invalidate()
             com.cerniera.kit.Family.seats(c, store(c), ids) { sizes(m.getAppWidgetOptions(it)) }
             val look = look(c)
-            // RemoteViews carry at most about 1.5 screens of bitmap: kept well inside it
-            val budget = screen.x.toLong() * screen.y * 4 * 3 / 2 * 85 / 100
             ids.forEach { id ->
+              // Sent through the Kit's WidgetBudget (27 Nov 2026): within Android's real cap, and a refusal
+              // is redrawn smaller rather than leaving the gauge on its last picture
+              com.cerniera.kit.WidgetBudget.send(c, m, id) {
+                val budget = com.cerniera.kit.WidgetBudget.bytes(c)
+                val shrink = Math.sqrt(com.cerniera.kit.WidgetBudget.scale(c).toDouble()).toFloat()
                 val list = sizes(m.getAppWidgetOptions(id))
                 val now = if (portrait) list.first() else list.last()
                 val seat = Backdrop.seat(store(c), id)
@@ -154,7 +157,7 @@ class GaugeWidget : AppWidgetProvider() {
                         px = Math.round(seat.width); py = Math.round(seat.height)
                     }
                     val want = px.toLong() * py * 4
-                    val k = if (!isNow && spent + want > budget) Math.sqrt((budget - spent).coerceAtLeast(budget / 4).toDouble() / want).toFloat() else 1f
+                    val k = shrink * (if (!isNow && spent + want > budget) Math.sqrt((budget - spent).coerceAtLeast(budget / 4).toDouble() / want).toFloat() else 1f)
                     val bw = Math.round(px * k).coerceAtLeast(60); val bh = Math.round(py * k).coerceAtLeast(40)
                     spent += bw.toLong() * bh * 4
                     map[s] = RemoteViews(c.packageName, R.layout.gauge).apply {
@@ -166,7 +169,8 @@ class GaugeWidget : AppWidgetProvider() {
                             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
                     }
                 }
-                runCatching { m.updateAppWidget(id, if (map.size == 1) map.values.first() else RemoteViews(map)) }
+                if (map.size == 1) map.values.first() else RemoteViews(map)
+              }
             }
         }
 
