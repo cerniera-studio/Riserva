@@ -144,7 +144,7 @@ class GaugeWidget : AppWidgetProvider() {
                 val shrink = Math.sqrt(com.cerniera.kit.WidgetBudget.scale(c).toDouble()).toFloat()
                 val list = sizes(m.getAppWidgetOptions(id))
                 val now = if (portrait) list.first() else list.last()
-                val seat = Backdrop.seat(store(c), id)
+                val seat = Backdrop.seat(c, store(c), id)
                 val map = LinkedHashMap<SizeF, RemoteViews>()
                 var spent = 0L
                 // The size in use first, so it is never the one that gives way
