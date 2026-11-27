@@ -148,10 +148,11 @@ class GaugeWidget : AppWidgetProvider() {
                 val map = LinkedHashMap<SizeF, RemoteViews>()
                 var spent = 0L
                 // The size in use first, so it is never the one that gives way
-                (listOf(now) + list.filter { !same(it, now) }).forEach { s ->
-                    val isNow = same(s, now)
+                // Plus the sizes' shared part, for a launcher stack whose real box none of them fits (27 Nov 2026)
+                com.cerniera.kit.WidgetSizes.withShared(listOf(now) + list.filter { !same(it, now) }).forEach { (s, up) ->
+                    val isNow = up == 1f && same(s, now)
                     // Measured by a tap at this very size, on this screen: its true pixels
-                    var px = Math.round(s.width * d); var py = Math.round(s.height * d)
+                    var px = Math.round(s.width * d * up); var py = Math.round(s.height * d * up)
                     if (isNow && seat != null && seat.exact && seat.screenW == screen.x && seat.screenH == screen.y &&
                         Math.abs(seat.repW - s.width) < 1.5f && Math.abs(seat.repH - s.height) < 1.5f) {
                         px = Math.round(seat.width); py = Math.round(seat.height)
@@ -161,7 +162,7 @@ class GaugeWidget : AppWidgetProvider() {
                     val bw = Math.round(px * k).coerceAtLeast(60); val bh = Math.round(py * k).coerceAtLeast(40)
                     spent += bw.toLong() * bh * 4
                     map[s] = RemoteViews(c.packageName, R.layout.gauge).apply {
-                        setImageViewBitmap(R.id.picture, picture(c, id, bw, bh, d * k, e, look))
+                        setImageViewBitmap(R.id.picture, picture(c, id, bw, bh, d * up * k, e, look))
                         setContentDescription(R.id.picture, "Riserva: main screen ${hm(e.hoursMain)}, cover ${hm(e.hoursCover)}")
                         // Each widget's own tap, carrying its id: the tap's bounds measure the widget
                         setOnClickPendingIntent(R.id.root, PendingIntent.getActivity(c, id,
